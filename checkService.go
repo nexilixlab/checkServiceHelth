@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -122,7 +123,7 @@ func main() {
 		}
 
 		req.Header.Set("Content-Type", "application/json")
-		req.Body = ioutil.NopCloser((string(payload)))
+		req.Body = ioutil.NopCloser(bytes.NewBuffer(payload))
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
