@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nexilixlab/checkServiceHelth/config"
@@ -32,8 +34,8 @@ func checkBlock() (int, error) {
 	return int(blockNumber), nil
 }
 
-func restartService() error {
-	cmd := exec.Command("systemctl", "restart", "nexilix.service")
+func restartService(service string) error {
+	cmd := exec.Command("systemctl", "restart", service)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -42,6 +44,15 @@ func restartService() error {
 }
 
 func main() {
+	servicesPtr := flag.String("services", "", "comma-separated list of services to restart")
+	flag.Parse()
+
+	services := strings.Split(*servicesPtr, ",")
+
+	if len(services) == 0 {
+		fmt.Println("Error: at least one service name should be provided")
+		return
+	}
 	for {
 		conf, err := config.Read()
 		if err != nil {
@@ -61,9 +72,11 @@ func main() {
 				return
 			}
 
-			if err := restartService(); err != nil {
-				fmt.Println("Error: ", err)
-				return
+			for _, service := range services {
+				if err := restartService(service); err != nil {
+					fmt.Println("Error: ", err)
+					return
+				}
 			}
 		}
 
