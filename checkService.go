@@ -127,14 +127,13 @@ func main() {
 	services := strings.Split(*servicesPtr, ",")
 
 	if len(services) == 0 {
-		//fmt.Println("Error: at least one service name should be provided")
-		log.Fatal("Error: at least one service name should be provided")
+		log.Fatalf("Error: at least one service name should be provided")
 		return
 	}
 
-	logFile, err := os.OpenFile("/var/log/checkNexilix/service.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logFile, err := os.Create("/var/log/checkNexilix/service.log")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf(err)
 	}
 
 	defer logFile.Close()
