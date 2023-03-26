@@ -1,20 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Service struct {
@@ -26,6 +23,56 @@ type Config struct {
 	Id      int       `json:"id"`
 	Method  string    `json:"method"`
 	Params  []Service `json:"params"`
+}
+
+const (
+	blockCheckInterval = 10 * time.Second
+)
+
+func checkBlock(rpcUrl string) bool {
+	client, err := ethclient.Dial(rpcUrl)
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+
+	// Get the latest block number
+	latestBlock, err := getLatestBlock(client)
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+	if !checkService() {
+		return false
+	}
+	time.Sleep(blockCheckInterval)
+	latestBlockAgain, err := getLatestBlock(client)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// If the latest block has changed, log the error and exit the loop
+	if latestBlockAgain.NumberU64() == latestBlock.NumberU64() {
+		log.Fatalf("Error in service block is %s", latestBlockAgain.NumberU64())
+		return false
+	}
+	return true
+}
+
+// Get the latest block from the connected node
+func getLatestBlock(client *ethclient.Client) (*ethclient.Block, error) {
+	latestBlock, err := client.BlockByNumber(context.Background(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return latestBlock, nil
+}
+
+// Check the health of the service
+func checkService() bool {
+	// TODO: Implement the service health check logic
+	return true
 }
 
 func readConfig(filename string) (Config, error) {
@@ -78,6 +125,7 @@ func getCurrentBlock(rpcUrl string) {
 
 func main() {
 	servicesPtr := flag.String("services", "", "comma-separated list of services to restart")
+	rpcUrl := flag.String("rpcUrl", "http://127.0.0.1:8545", "")
 	flag.Parse()
 
 	services := strings.Split(*servicesPtr, ",")
@@ -100,115 +148,12 @@ func main() {
 	for {
 		time.Sleep(5 * time.Minute)
 
-		method := config.Method
-		params := config.Params
-
-		url := fmt.Sprintf("%s", config.Jsonrpc)
-		payload, err := json.Marshal(map[string]interface{}{
-			"jsonrpc": "2.0",
-			"id":      1,
-			"method":  method,
-			"params":  params,
-		})
-		if err != nil {
-			logger.Printf("Failed to create payload: %s\n", err.Error())
-			continue
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
-		if err != nil {
-			logger.Printf("Failed to create HTTP request: %s\n", err.Error())
-			continue
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(payload))
-
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			logger.Printf("Failed to send HTTP request: %s\n", err.Error())
-		}
-
-		defer resp.Body.Close()
-
-		respBody, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			logger.Printf("Failed to read response body: %s\n", err.Error())
-			continue
-		}
-
-		var respData map[string]interface{}
-
-		if err := json.Unmarshal(respBody, &respData); err != nil {
-			logger.Printf("Failed to parse response body: %s\n", err.Error())
-			continue
-		}
-
-		result, ok := respData["result"].(map[string]interface{})
-		if !ok {
-			logger.Println("Failed to parse result field in response")
-			continue
-		}
-
-		block, ok := result["number"].(string)
-		if !ok {
-			logger.Println("Failed to parse block number from response")
-			continue
-		}
-
-		lastBlock, err := strconv.Atoi(string(block))
-		if err != nil {
-			logger.Printf("Failed to parse block number as integer: %s\n", err.Error())
-			continue
-		}
-
-		lastBlockString := strconv.Itoa(lastBlock)
-
-		xmlFile, err := os.Open("config.xml")
-		if err != nil {
-			logger.Printf("Failed to open config.xml: %s\n", err.Error())
-			continue
-		}
-
-		defer xmlFile.Close()
-
-		xmlData, err := ioutil.ReadAll(xmlFile)
-		if err != nil {
-			logger.Printf("Failed to read config.xml: %s\n", err.Error())
-			continue
-		}
-
-		var configData map[string]string
-
-		if err := xml.Unmarshal(xmlData, &configData); err != nil {
-			logger.Printf("Failed to parse config.xml: %s\n", err.Error())
-			continue
-		}
-
-		previousBlock, ok := configData["lastblock"]
-		if !ok {
-			logger.Println("Failed to find last block number in config.xml")
-			continue
-		}
-
-		if previousBlock == lastBlockString {
-			logger.Printf("Server is healthy. Last block is %s and current block is %s\n", previousBlock, lastBlockString)
+		if checkBlock(rpcUrl) {
+			logger.Println("Service is Helathy")
 		} else {
-			logger.Printf("Trying to restart services...\n")
-
-			for _, service := range config.Params {
-				if err := restartService(service.Name, logger); err != nil {
-					logger.Printf("Failed to restart service %s: %s\n", service.Name, err.Error())
-				}
+			for _, service := range services {
+				restartService(service, logger)
 			}
-		}
-
-		if err := writeData(lastBlockString); err != nil {
-			logger.Printf("Failed to write block number to config.xml: %s\n", err.Error())
 		}
 	}
 }
