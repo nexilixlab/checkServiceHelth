@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -71,19 +72,20 @@ func restartService(serviceName string, logger *log.Logger) error {
 	return nil
 }
 
+func getCurrentBlock(rpcUrl string) {
+
+}
+
 func main() {
-	configFilePath := flag.String("configFilePath", "", "Path to the config file")
+	servicesPtr := flag.String("services", "", "comma-separated list of services to restart")
 	flag.Parse()
 
-	configFile := "config.json"
+	services := strings.Split(*servicesPtr, ",")
 
-	if *configFilePath != "" {
-		configFile = *configFilePath
-	}
-
-	config, err := readConfig(configFile)
-	if err != nil {
-		log.Fatal(err)
+	if len(services) == 0 {
+		//fmt.Println("Error: at least one service name should be provided")
+		log.Fatal("Error: at least one service name should be provided")
+		return
 	}
 
 	logFile, err := os.OpenFile("/var/log/checkNexilix/service.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)

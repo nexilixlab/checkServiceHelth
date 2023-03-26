@@ -1,35 +1,56 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"strconv"
+	"context"
+	"log"
+	"time"
+
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func checkBlock() (int, error) {
-	resp, err := http.Get("http://127.0.0.1:8545")
+const (
+	blockCheckInterval = 10 * time.Second
+)
+
+func checkBlock(rpcUrl string) (bool, error) {
+	client, err := ethclient.Dial(rpcUrl)
 	if err != nil {
-		return 0, err
+		log.Fatal(err)
 	}
 
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
+	// Get the latest block number
+	latestBlock, err := getLatestBlock(client)
 	if err != nil {
-		return 0, err
+		log.Fatal(err)
 	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, err
+	if !checkService() {
+		return false, nil
 	}
-
-	blockNumberHex := result["result"].(string)
-	blockNumber, err := strconv.ParseInt(blockNumberHex[2:], 16, 64)
+	time.Sleep(blockCheckInterval)
+	latestBlockAgain, err := getLatestBlock(client)
 	if err != nil {
-		return 0, err
+		log.Fatal(err)
 	}
 
-	return int(blockNumber), nil
+	// If the latest block has changed, log the error and exit the loop
+	if latestBlockAgain.NumberU64() == latestBlock.NumberU64() {
+		return false, nil
+	}
+	return true, nil
+}
+
+// Get the latest block from the connected node
+func getLatestBlock(client *ethclient.Client) (*ethclient.Block, error) {
+	latestBlock, err := client.BlockByNumber(context.Background(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return latestBlock, nil
+}
+
+// Check the health of the service
+func checkService() bool {
+	// TODO: Implement the service health check logic
+	return true
 }
