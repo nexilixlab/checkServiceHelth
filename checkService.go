@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -60,7 +61,7 @@ func checkBlock(rpcUrl string) bool {
 }
 
 // Get the latest block from the connected node
-func getLatestBlock(client *ethclient.Client) (*ethclient.Block, error) {
+func getLatestBlock(client *ethclient.Client) (*types.Block, error) {
 	latestBlock, err := client.BlockByNumber(context.Background(), nil)
 	if err != nil {
 		return nil, err
@@ -92,7 +93,6 @@ func readConfig(filename string) (Config, error) {
 
 	return config, nil
 }
-
 func writeData(block string) error {
 	xmlString := []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><config><lastblock>" + block + "</lastblock></config>")
 	err := ioutil.WriteFile("config.xml", xmlString, 0644)
@@ -142,7 +142,7 @@ func main() {
 	logger := log.New(logFile, "", log.LstdFlags)
 
 	if checkBlock(*rpcUrl) {
-		logger.Println("Service is Helathy")
+		logger.Println("Service is Healthy")
 	} else {
 		for _, service := range services {
 			restartService(service, logger)
