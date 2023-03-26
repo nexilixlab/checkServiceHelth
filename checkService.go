@@ -141,7 +141,7 @@ func main() {
 
 	logger := log.New(logFile, "", log.LstdFlags)
 
-	if checkBlock(rpcUrl) {
+	if checkBlock(*rpcUrl) {
 		logger.Println("Service is Helathy")
 	} else {
 		for _, service := range services {
