@@ -33,7 +33,7 @@ const (
 func checkBlock(rpcUrl string, logger *log.Logger) bool {
 	client, err := ethclient.Dial(rpcUrl)
 	if err != nil {
-		log.Printf(err)
+		log.Printf(err.Error())
 		return false
 	}
 
