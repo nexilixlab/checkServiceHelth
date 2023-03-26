@@ -119,10 +119,6 @@ func restartService(serviceName string, logger *log.Logger) error {
 	return nil
 }
 
-func getCurrentBlock(rpcUrl string) {
-
-}
-
 func main() {
 	servicesPtr := flag.String("services", "", "comma-separated list of services to restart")
 	rpcUrl := flag.String("rpcUrl", "http://127.0.0.1:8545", "")
@@ -145,15 +141,11 @@ func main() {
 
 	logger := log.New(logFile, "", log.LstdFlags)
 
-	for {
-		time.Sleep(5 * time.Minute)
-
-		if checkBlock(rpcUrl) {
-			logger.Println("Service is Helathy")
-		} else {
-			for _, service := range services {
-				restartService(service, logger)
-			}
+	if checkBlock(rpcUrl) {
+		logger.Println("Service is Helathy")
+	} else {
+		for _, service := range services {
+			restartService(service, logger)
 		}
 	}
 }
