@@ -140,7 +140,7 @@ func main() {
 
 	logger := log.New(logFile, "", log.LstdFlags)
 
-	if checkBlock(*rpcUrl) {
+	if checkBlock(*rpcUrl, logger) {
 		logger.Println("Service is Healthy")
 	} else {
 		for _, service := range services {
