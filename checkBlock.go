@@ -34,6 +34,7 @@ func checkBlock(rpcUrl string) (bool, error) {
 
 	// If the latest block has changed, log the error and exit the loop
 	if latestBlockAgain.NumberU64() == latestBlock.NumberU64() {
+		log.Fatalf("Error in service block is %s", latestBlockAgain.NumberU64())
 		return false, nil
 	}
 	return true, nil
