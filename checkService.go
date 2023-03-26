@@ -30,7 +30,7 @@ const (
 	blockCheckInterval = 10 * time.Second
 )
 
-func checkBlock(rpcUrl string) bool {
+func checkBlock(rpcUrl string, logger *log.Logger) bool {
 	client, err := ethclient.Dial(rpcUrl)
 	if err != nil {
 		log.Fatal(err)
@@ -49,12 +49,12 @@ func checkBlock(rpcUrl string) bool {
 	time.Sleep(blockCheckInterval)
 	latestBlockAgain, err := getLatestBlock(client)
 	if err != nil {
-		log.Fatal(err)
+		logger.Printf(err)
 	}
 
 	// If the latest block has changed, log the error and exit the loop
 	if latestBlockAgain.NumberU64() == latestBlock.NumberU64() {
-		log.Printf("Error in service current block is %v", latestBlockAgain.NumberU64())
+		logger.Printf("Error in service current block is %v", latestBlockAgain.NumberU64())
 		return false
 	}
 	return true
