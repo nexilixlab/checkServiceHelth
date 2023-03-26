@@ -43,26 +43,26 @@ func restartService() error {
 
 func main() {
 	for {
-		config, err := config.Read()
+		conf, err := config.Read()
 		if err != nil {
-			fmt.Println("Error:", err)
+			fmt.Println("Error: ", err)
 			return
 		}
 
 		blockNumber, err := checkBlock()
 		if err != nil {
-			fmt.Println("Error:", err)
+			fmt.Println("Error: ", err)
 			return
 		}
 
-		if blockNumber != config.Block {
+		if blockNumber != conf.Block {
 			if err := config.Write(blockNumber); err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println("Error: ", err)
 				return
 			}
 
 			if err := restartService(); err != nil {
-				fmt.Println("Error:", err)
+				fmt.Println("Error: ", err)
 				return
 			}
 		}
