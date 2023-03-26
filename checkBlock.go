@@ -1,17 +1,18 @@
 package main
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 )
 
 func checkBlock() (int, error) {
-	// ارسال درخواست به آدرس RPC برای گرفتن آخرین بلوک
-	resp, err := http.Post("http://127.0.0.1:8545", "application/json", nil)
+	resp, err := http.Get("http://127.0.0.1:8545")
 	if err != nil {
 		return 0, err
 	}
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -19,11 +20,16 @@ func checkBlock() (int, error) {
 		return 0, err
 	}
 
-	// پردازش بلوک دریافتی
-	blockNumber, err := strconv.Atoi(string(body))
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return 0, err
+	}
+
+	blockNumberHex := result["result"].(string)
+	blockNumber, err := strconv.ParseInt(blockNumberHex[2:], 16, 64)
 	if err != nil {
 		return 0, err
 	}
 
-	return blockNumber, nil
+	return int(blockNumber), nil
 }

@@ -5,17 +5,17 @@ import (
 	"io/ioutil"
 )
 
-func writeData(blockNumber int) error {
-	config := &Config{Block: blockNumber}
+const filename = "config.xml"
 
-	// تبدیل تنظیمات به داده‌های XML
+func writeData(blockNumber int) error {
+	config := Config{Block: blockNumber}
 	data, err := xml.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	// ذخیره تنظیمات در فایل
-	if err := ioutil.WriteFile("config.xml", data, 0644); err != nil {
+	err = ioutil.WriteFile(filename, []byte(xml.Header+string(data)), 0644)
+	if err != nil {
 		return err
 	}
 
