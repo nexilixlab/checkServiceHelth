@@ -1,58 +1,72 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os/exec"
+	"strconv"
 	"time"
+
+	"github.com/nexilixlab/checkServiceHelth/config"
 )
 
-// فراخوانی بخش‌های دیگر برنامه
-func main() {
-	// خواندن تنظیمات اولیه
-	config, err := readConfig()
+func checkBlock() (int, error) {
+	resp, err := http.Get("http://127.0.0.1:8545")
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, err
 	}
 
-	// برنامه ریزی برای اجرای بخش‌های مختلف هر ۵ دقیقه
-	ticker := time.NewTicker(5 * time.Minute)
-	defer ticker.Stop()
+	blockNumberHex := result["result"].(string)
+	blockNumber, err := strconv.ParseInt(blockNumberHex[2:], 16, 64)
+	if err != nil {
+		return 0, err
+	}
 
+	return int(blockNumber), nil
+}
+
+func restartService() error {
+	cmd := exec.Command("systemctl", "restart", "nexilix.service")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func main() {
 	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Checking block...")
-			blockNumber, err := checkBlock()
-			if err != nil {
+		config, err := config.Read()
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		blockNumber, err := checkBlock()
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		if blockNumber != config.Block {
+			if err := config.Write(blockNumber); err != nil {
 				fmt.Println("Error:", err)
-				continue
+				return
 			}
 
-			if blockNumber == config.Block {
-				fmt.Println("No new block found.")
-				continue
-			}
-
-			fmt.Println("New block found:", blockNumber)
-
-			if err := writeData(blockNumber); err != nil {
+			if err := restartService(); err != nil {
 				fmt.Println("Error:", err)
-				continue
-			}
-
-			if blockNumber == config.Block+1 {
-				fmt.Println("Restarting nexilix service...")
-				if err := restartService(); err != nil {
-					fmt.Println("Error restarting nexilix service:", err)
-					continue
-				}
-			}
-
-			config.Block = blockNumber
-			if err := writeConfig(config); err != nil {
-				fmt.Println("Error:", err)
-				continue
+				return
 			}
 		}
+
+		time.Sleep(5 * time.Minute)
 	}
 }
